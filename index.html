@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Açaí Delivery</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-deep: #0B0112; 
+            --glass-purple: rgba(30, 4, 45, 0.7);
+            --glass-border: rgba(138, 43, 226, 0.35);
+            --neon-green: #00FF87; 
+            --neon-green-glow: rgba(0, 255, 135, 0.4);
+            --neon-alert: #ff4444;
+            --purple-light: #E0B0FF;
+            --text-white: #FFFFFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Montserrat', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: radial-gradient(circle at 50% 0%, #2A0440 0%, var(--bg-deep) 80%); color: var(--text-white); padding-bottom: 120px; min-height: 100vh; overflow-x: hidden; }
+
+        header { text-align: center; padding: 60px 20px 20px; position: relative; }
+        .brand-logo { width: 280px; max-width: 80%; height: auto; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8)) drop-shadow(0 0 15px var(--neon-green-glow)); transform: rotateX(10deg) rotateY(-5deg); transition: transform 0.5s ease; margin-bottom: 10px; }
+        .store-info { font-size: 0.8rem; color: var(--purple-light); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;}
+        .line { width: 100px; height: 1px; background: linear-gradient(90deg, transparent, var(--neon-green), transparent); margin: 0 auto 25px; box-shadow: 0 0 10px var(--neon-green);}
+
+        .container { max-width: 750px; margin: 0 auto; padding: 0 20px; }
+        
+        .grid-produtos { display: flex; flex-direction: column; gap: 25px; margin-top: 10px;}
+        .card { background: var(--glass-purple); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 20px; display: flex; gap: 20px; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.6); transition: all 0.4s ease; cursor: pointer; }
+        .card:hover { border-color: var(--neon-green); transform: translateY(-5px); }
+        
+        .img-wrapper { display: flex; flex-direction: column; align-items: center; width: 115px; }
+        .card-img { width: 115px; height: 115px; border-radius: 18px; object-fit: cover; border: 1px solid rgba(0, 255, 135, 0.3); background: rgba(0,0,0,0.4); box-shadow: 0 8px 20px rgba(0,0,0,0.5);}
+
+        .card-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .card-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--text-white); margin-bottom: 6px; }
+        .card-desc { font-size: 0.8rem; color: var(--purple-light); line-height: 1.5; margin-bottom: 15px; opacity: 0.9;}
+        
+        .card-footer { display: flex; justify-content: space-between; align-items: center; }
+        .card-price { font-weight: 700; font-size: 1.3rem; color: var(--neon-green); }
+        .btn-add { background: transparent; border: 1px solid var(--neon-green); color: var(--neon-green); padding: 10px 24px; border-radius: 30px; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        
+        .cart-float { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(150px); background: rgba(10, 2, 15, 0.95); backdrop-filter: blur(20px); border: 1px solid var(--neon-green); border-radius: 50px; padding: 10px 12px 10px 35px; width: 92%; max-width: 450px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 20px 50px rgba(0,0,0,0.9), inset 0 0 15px var(--neon-green-glow); transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 100; }
+        .cart-float.show { transform: translateX(-50%) translateY(0); }
+        .cart-info { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 15px;}
+        .cart-badge { background: var(--neon-green); color: var(--bg-deep); font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; font-weight: 800; }
+        .btn-checkout { background: var(--neon-green); color: var(--bg-deep); border: none; padding: 16px 28px; border-radius: 40px; font-weight: 800; font-size: 0.85rem; cursor: pointer; text-transform: uppercase;}
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 15px;}
+        .modal-content { background: #12041D; border: 1px solid var(--glass-border); width: 100%; max-width: 480px; border-radius: 30px; padding: 35px 25px 60px 25px; position: relative; max-height: 90vh; overflow-y: auto; }
+        .modal-admin-full { max-width: 100%; height: 100%; border-radius: 0; border: none; }
+        
+        .btn-close { position: absolute; top: 20px; right: 25px; background: none; border: none; color: var(--purple-light); font-size: 2.5rem; cursor: pointer; line-height: 1; z-index: 10;}
+        .modal-title { font-family: 'Playfair Display', serif; color: var(--neon-green); font-size: 1.8rem; text-align: center; margin-bottom: 10px; }
+        
+        .comp-section { margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; }
+        .comp-title { font-size: 0.85rem; color: var(--purple-light); text-transform: uppercase; font-weight: 700; text-align: center; margin-bottom: 5px;}
+        .comp-subtitle { font-size: 0.7rem; color: #888; text-align: center; margin-bottom: 15px; display: block; }
+        .comp-subtitle.alert { color: var(--neon-alert); font-weight: 600; }
+        
+        .comp-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px;}
+        .comp-name { font-size: 0.9rem; font-weight: 500; }
+        .comp-price { font-size: 0.75rem; color: var(--neon-green); font-weight: 700; display: block; margin-top: 5px;}
+        
+        .counter-box { display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);}
+        .btn-count { background: transparent; color: var(--neon-green); border: none; width: 35px; height: 35px; border-radius: 8px; font-size: 1.4rem; font-weight: 300; cursor: pointer; }
+        .count-val { font-weight: 700; font-size: 1.1rem; width: 20px; text-align: center; }
+
+        input, select, textarea { width: 100%; padding: 18px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 16px; color: #fff; margin-bottom: 15px; font-size: 0.9rem; outline: none; }
+        textarea { height: 100px; resize: none; }
+        
+        .btn-primary { width: 100%; background: var(--neon-green); color: var(--bg-deep); border: none; padding: 20px; border-radius: 16px; font-weight: 800; cursor: pointer; text-transform: uppercase; margin-top: 10px;}
+        .btn-danger { background: rgba(255,0,0,0.1); border: 1px solid #ff4444; color: #ff4444; }
+        .btn-edit { background: rgba(255,255,255,0.1); border: 1px solid #fff; color: #fff; font-size: 1rem;}
+        
+        .admin-trigger { font-size: 0.7rem; color: var(--purple-light); letter-spacing: 4px; cursor: pointer; opacity: 0.4; display: block; text-align: center; margin-top: 50px; margin-bottom: 20px;}
+        
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; scrollbar-width: none;}
+        .tab-btn { flex: 1; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: var(--purple-light); border-radius: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;}
+        .tab-btn.active { background: var(--neon-green); color: var(--bg-deep); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .pedido-card { background: rgba(255,255,255,0.02); border-left: 4px solid var(--neon-green); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        
+        #dadosPix { background: rgba(0,255,135,0.05); border: 1px solid var(--neon-green); padding: 20px; border-radius: 12px; margin-bottom: 15px; text-align: center; }
+        .qr-code-img { width: 180px; height: 180px; margin: 15px auto; border-radius: 12px; border: 2px solid var(--neon-green); padding: 5px; background: #fff; display: block; }
+        
+        #entregaBox { display: none; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px;}
+    </style>
+</head>
+<body>
+
+<header>
+    <img src="WhatsApp_Image_2026-05-01_at_15.31.00-removebg-preview.png" id="logoDinamica" alt="Açaí Delivery" class="brand-logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/8421/8421115.png'">
+    <div class="store-info">Delivery e Retirada</div>
+    <div class="line"></div>
+</header>
+
+<div class="container">
+    <div id="loadingMsg" style="text-align: center; color: var(--neon-green); padding: 40px; font-weight: bold;">Carregando cardápio...</div>
+    <div class="grid-produtos" id="vitrine"></div>
+</div>
+
+<span class="admin-trigger" onclick="abrirAdmin()">PAINEL ADMINISTRATIVO</span>
+
+<div class="cart-float" id="cartBar">
+    <div class="cart-info"><span class="cart-badge" id="cartQtd">0</span> <span id="cartTotal">R$ 0,00</span></div>
+    <button type="button" class="btn-checkout" onclick="abrirCheckout()">Finalizar</button>
+</div>
+
+<!-- Builder Modal -->
+<div class="modal-overlay" id="modalBuilder">
+    <div class="modal-content">
+        <button type="button" class="btn-close" onclick="fecharModais()">×</button>
+        <h2 class="modal-title" id="buildTitle">Montar</h2>
+        <p style="text-align:center; color:var(--purple-light); font-size:0.8rem; margin-bottom: 20px;" id="buildDescLimit"></p>
+
+        <div class="comp-section" style="margin-top: 0;">
+            <div class="comp-title">Cremes (<span id="qtdCremesUI">0</span>/<span id="limCremesUI"></span>)</div>
+            <span class="comp-subtitle" id="alertaCreme">O que passar do limite custará + R$ 2,00 cada</span>
+            <div id="listaBuilderCremes"></div>
+        </div>
+
+        <div class="comp-section">
+            <div class="comp-title">Caldas (<span id="qtdCaldasUI">0</span>/<span id="limCaldasUI"></span>)</div>
+            <span class="comp-subtitle" id="alertaCalda">O que passar do limite custará + R$ 2,00 cada</span>
+            <div id="listaBuilderCaldas"></div>
+        </div>
+        
+        <div class="comp-section">
+            <div class="comp-title">Frutas (<span id="qtdFrutasUI">0</span>/<span id="limFrutasUI"></span>)</div>
+            <span class="comp-subtitle" id="alertaFruta">O que passar do limite custará + R$ 2,00 cada</span>
+            <div id="listaBuilderFrutas"></div>
+        </div>
+
+        <div class="comp-section">
+            <div class="comp-title">Complementos (<span id="qtdCompsUI">0</span>/<span id="limCompsUI"></span>)</div>
+            <span class="comp-subtitle" id="alertaComp">O que passar do limite custará + R$ 2,00 cada</span>
+            <div id="listaBuilderComplementos"></div>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center; font-size: 1.5rem; font-weight: 700;">
+            Total: <span style="color: var(--neon-green);" id="buildTotalDisplay">R$ 0,00</span>
+        </div>
+
+        <button type="button" class="btn-primary" onclick="adicionarAoCarrinho()">Adicionar ao Pedido</button>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal-overlay" id="modalCheckout">
+    <div class="modal-content">
+        <button type="button" class="btn-close" onclick="fecharModais()">×</button>
+        <h2 class="modal-title">Seu Pedido</h2>
+        
+        <div id="listaCheckoutItens" style="margin-bottom: 25px; max-height: 200px; overflow-y: auto;"></div>
+        
+        <select id="cliTipoPedido" onchange="toggleEntrega()">
+            <option value="retirada">Retirada (Vou buscar)</option>
+            <option value="entrega">Entrega em Casa</option>
+        </select>
+
+        <div id="entregaBox">
+            <input type="text" id="cliRua" placeholder="Rua / Avenida">
+            <input type="text" id="cliNumero" placeholder="Número" style="width: 48%; display:inline-block;">
+            <input type="text" id="cliBairro" placeholder="Bairro" style="width: 48%; display:inline-block; float:right;">
+            <input type="text" id="cliRef" placeholder="Ponto de Referência (Opcional)">
+        </div>
+        
+        <input type="text" id="cliNome" placeholder="Seu Nome Completo">
+        <textarea id="cliObs" placeholder="Alguma observação especial?"></textarea>
+        
+        <select id="cliPgto" onchange="togglePgto()">
+            <option value="pix">Pagar com PIX</option>
+            <option value="dinheiro">Dinheiro (Na entrega/retirada)</option>
+            <option value="cartao">Cartão de Crédito/Débito</option>
+        </select>
+        
+        <div id="dadosPix">
+            <b style="color: var(--neon-green);">QR CODE PIX GERADO</b>
+            <img id="qrCodeImage" class="qr-code-img" src="" alt="QR Code PIX">
+            <input type="text" id="pixCopiaCola" readonly style="font-size: 0.85rem; text-align:center; background: rgba(0,0,0,0.5); cursor: pointer;" onclick="this.select(); document.execCommand('copy'); alert('Copiado!');">
+        </div>
+
+        <input type="number" id="cliTroco" placeholder="Troco para quanto?" style="display:none;">
+
+        <div style="font-size: 1.5rem; font-weight: 700; text-align: center; margin: 20px 0;">
+            Total: <span id="checkoutTotalUI" style="color: var(--neon-green);"></span>
+        </div>
+
+        <button type="button" class="btn-primary" onclick="finalizarPedido()">Enviar Pedido (WhatsApp)</button>
+    </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-overlay" id="modalAdmin">
+    <div class="modal-content modal-admin-full">
+        <button type="button" class="btn-close" onclick="fecharModais()">×</button>
+        <h2 class="modal-title">Painel Admin</h2>
+        
+        <div class="admin-tabs">
+            <button class="tab-btn active" onclick="trocarAbaAdmin('pedidos', this)">Pedidos</button>
+            <button class="tab-btn" onclick="trocarAbaAdmin('produtos', this)">Produtos</button>
+            <button class="tab-btn" onclick="trocarAbaAdmin('adicionais', this)">Adicionais</button>
+        </div>
+
+        <div id="aba-pedidos" class="tab-content active">
+            <div id="listaAdminPedidos"></div>
+        </div>
+
+        <div id="aba-produtos" class="tab-content">
+            <h3 class="comp-title" id="formTitleProd">Novo Produto</h3>
+            <input type="hidden" id="editProdId">
+            <input type="hidden" id="editProdImg">
+            <input type="text" id="addProdNome" placeholder="Nome (Ex: Copo 500ml)">
+            <input type="text" id="addProdDesc" placeholder="Descrição (Limites)">
+            <input type="number" id="addProdPreco" placeholder="Preço" step="0.01">
+            <input type="number" id="addProdLimCremes" placeholder="Limite Cremes" style="width:48%; display:inline-block;">
+            <input type="number" id="addProdLimCaldas" placeholder="Limite Caldas" style="width:48%; display:inline-block; float:right;">
+            <input type="number" id="addProdLimFrutas" placeholder="Limite Frutas" style="width:48%; display:inline-block;">
+            <input type="number" id="addProdLimComps" placeholder="Limite Complementos" style="width:48%; display:inline-block; float:right;">
+            
+            <p style="font-size:0.8rem; color:var(--purple-light);">Foto do Produto:</p>
+            <input type="file" id="addProdFile" accept="image/*">
+            <p id="uploadStatus" style="color:var(--neon-green); font-size:0.8rem;"></p>
+            
+            <button type="button" class="btn-primary" onclick="salvarProduto()">Salvar Produto</button>
+            <button type="button" class="btn-primary btn-cancel" onclick="limparFormProd()" style="background:transparent; border:1px solid #fff; margin-top:10px;">Cancelar Edição</button>
+            
+            <hr style="border-color:var(--glass-border); margin: 30px 0;">
+            <h3 class="comp-title">Produtos Cadastrados</h3>
+            <div id="listaAdminEstoque"></div>
+        </div>
+
+        <div id="aba-adicionais" class="tab-content">
+            <h3 class="comp-title" id="formTitleAdd">Novo Adicional</h3>
+            <input type="hidden" id="editAddId">
+            <input type="text" id="addAddNome" placeholder="Nome (Ex: Leite em Pó)">
+            <select id="addAddCat">
+                <option value="creme">Creme</option>
+                <option value="calda">Calda</option>
+                <option value="fruta">Fruta</option>
+                <option value="complemento">Complemento</option>
+            </select>
+            <input type="number" id="addAddPreco" placeholder="Preço (Deixe 0 para itens que só cobram extra)" step="0.01" value="0">
+            <p style="font-size:0.75rem; color:gray;">Ex: Nutella coloque 4.00, Batom coloque 0.</p>
+            
+            <button type="button" class="btn-primary" onclick="salvarAdicional()">Salvar Adicional</button>
+            <button type="button" class="btn-primary btn-cancel" onclick="limparFormAdd()" style="background:transparent; border:1px solid #fff; margin-top:10px;">Cancelar Edição</button>
+            
+            <hr style="border-color:var(--glass-border); margin: 30px 0;">
+            <h3 class="comp-title">Adicionais Cadastrados</h3>
+            <div id="listaAdminAdicionais"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// CONFIGURAÇÃO DO FIREBASE VAI AQUI (Usando um LocalStorage se o Firebase não for providenciado ou uma configuração genérica para não quebrar a tela)
+// Como o usuário quer manter o "resto como estava", eu vou simular a conexão ou instanciar um db local se não tiver as keys.
+// O site será entregue pronto para ele colar as keys do firebase dele, ou usar localStorage fallback
+const initLocalDB = () => {
+    if(!localStorage.getItem('db_produtos')) {
+        localStorage.setItem('db_produtos', JSON.stringify({
+            p1: { nome: "Copo 250ml", desc: "2 cremes, 1 calda, 1 fruta, 2 complementos", preco: 14, limites: { cremes: 2, caldas: 1, frutas: 1, comps: 2 }, img: "" },
+            p2: { nome: "Copo 500ml", desc: "2 cremes, 1 calda, 2 frutas, 3 complementos", preco: 20, limites: { cremes: 2, caldas: 1, frutas: 2, comps: 3 }, img: "" },
+            p3: { nome: "Copo 700ml", desc: "3 cremes, 1 calda, 2 frutas, 4 complementos", preco: 28, limites: { cremes: 3, caldas: 1, frutas: 2, comps: 4 }, img: "" },
+            p4: { nome: "Garrafa 300ml", desc: "2 cremes, 1 calda, 1 fruta, 2 complementos", preco: 15, limites: { cremes: 2, caldas: 1, frutas: 1, comps: 2 }, img: "" },
+            p5: { nome: "Garrafa 500ml", desc: "2 cremes, 1 calda, 1 fruta, 3 complementos", preco: 20, limites: { cremes: 2, caldas: 1, frutas: 1, comps: 3 }, img: "" }
+        }));
+    }
+    if(!localStorage.getItem('db_adicionais')) {
+        localStorage.setItem('db_adicionais', JSON.stringify({
+            a1: { nome: "Açaí tradicional", categoria: "creme", precoExtraFixo: 0 },
+            a2: { nome: "Ninho trufado", categoria: "creme", precoExtraFixo: 0 },
+            a3: { nome: "Cupuaçu", categoria: "creme", precoExtraFixo: 0 },
+            a4: { nome: "Morango", categoria: "creme", precoExtraFixo: 0 },
+            a5: { nome: "Chocolate belga", categoria: "creme", precoExtraFixo: 0 },
+            a6: { nome: "Tapioca", categoria: "creme", precoExtraFixo: 0 },
+            a7: { nome: "Chocomalte", categoria: "creme", precoExtraFixo: 0 },
+            a8: { nome: "Oreo", categoria: "creme", precoExtraFixo: 0 },
+            
+            b1: { nome: "Leite condensado", categoria: "calda", precoExtraFixo: 0 },
+            b2: { nome: "Chocolate ao leite", categoria: "calda", precoExtraFixo: 0 },
+            b3: { nome: "Morango", categoria: "calda", precoExtraFixo: 0 },
+            b4: { nome: "Ninho", categoria: "calda", precoExtraFixo: 0 },
+            b5: { nome: "Paçoca", categoria: "calda", precoExtraFixo: 0 },
+            
+            f1: { nome: "Morango", categoria: "fruta", precoExtraFixo: 0 },
+            f2: { nome: "Kiwi", categoria: "fruta", precoExtraFixo: 0 },
+            f3: { nome: "Uva", categoria: "fruta", precoExtraFixo: 0 },
+            
+            c1: { nome: "Granola", categoria: "complemento", precoExtraFixo: 0 },
+            c2: { nome: "Amendoim gotas", categoria: "complemento", precoExtraFixo: 0 },
+            c3: { nome: "Paçoca", categoria: "complemento", precoExtraFixo: 0 },
+            c4: { nome: "M&Ms", categoria: "complemento", precoExtraFixo: 0 },
+            c5: { nome: "Chocoball", categoria: "complemento", precoExtraFixo: 0 },
+            c6: { nome: "Bis", categoria: "complemento", precoExtraFixo: 0 },
+            c7: { nome: "Leite em pó", categoria: "complemento", precoExtraFixo: 0 },
+            c8: { nome: "Farinha láctea", categoria: "complemento", precoExtraFixo: 0 },
+            c9: { nome: "Ovomaltine", categoria: "complemento", precoExtraFixo: 0 },
+            c10: { nome: "Kitkat", categoria: "complemento", precoExtraFixo: 0 },
+            c11: { nome: "Serenata", categoria: "complemento", precoExtraFixo: 0 },
+            c12: { nome: "Batom", categoria: "complemento", precoExtraFixo: 0 },
+            c13: { nome: "Nutella", categoria: "complemento", precoExtraFixo: 4 } // Nutella é +4
+        }));
+    }
+};
+initLocalDB();
+
+const getDB = (table) => JSON.parse(localStorage.getItem('db_' + table) || '{}');
+const saveDB = (table, data) => localStorage.setItem('db_' + table, JSON.stringify(data));
+
+let produtos = getDB('produtos');
+let adicionais = getDB('adicionais');
+let pedidos = getDB('pedidos');
+
+let carrinho = [];
+let produtoAtual = null;
+let selecaoAtual = {};
+let valorFinalBuild = 0;
+
+function carregarVitrine() {
+    produtos = getDB('produtos');
+    const vitrine = document.getElementById('vitrine');
+    vitrine.innerHTML = '';
+    document.getElementById('loadingMsg').style.display = 'none';
+    
+    Object.keys(produtos).forEach(id => {
+        let p = produtos[id];
+        let imgHtml = p.img ? `<div class="img-wrapper"><img src="${p.img}" class="card-img"></div>` : `<div class="img-wrapper"><div class="card-img" style="display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.7rem;">Sem Foto</div></div>`;
+        vitrine.innerHTML += `
+        <div class="card" onclick="abrirBuilder('${id}')">
+            ${imgHtml}
+            <div class="card-body">
+                <h3 class="card-title">${p.nome}</h3>
+                <p class="card-desc">${p.desc}</p>
+                <div class="card-footer">
+                    <span class="card-price">R$ ${parseFloat(p.preco).toFixed(2).replace('.', ',')}</span>
+                    <button class="btn-add">Montar</button>
+                </div>
+            </div>
+        </div>`;
+    });
+}
+
+function abrirBuilder(idProduto) {
+    adicionais = getDB('adicionais');
+    produtoAtual = produtos[idProduto];
+    selecaoAtual = {};
+    Object.keys(adicionais).forEach(k => selecaoAtual[k] = 0);
+    
+    document.getElementById('buildTitle').innerText = produtoAtual.nome;
+    document.getElementById('buildDescLimit').innerText = "Incluso: " + produtoAtual.desc;
+    
+    document.getElementById('limCremesUI').innerText = produtoAtual.limites.cremes;
+    document.getElementById('limCaldasUI').innerText = produtoAtual.limites.caldas;
+    document.getElementById('limFrutasUI').innerText = produtoAtual.limites.frutas;
+    document.getElementById('limCompsUI').innerText = produtoAtual.limites.comps;
+
+    renderizarListas();
+    atualizarTotalBuilder();
+    document.getElementById('modalBuilder').style.display = 'flex';
+}
+
+function renderizarListas() {
+    ['creme', 'calda', 'fruta', 'complemento'].forEach(cat => {
+        let idCat = cat === 'creme' ? 'Cremes' : cat === 'calda' ? 'Caldas' : cat === 'fruta' ? 'Frutas' : 'Complementos';
+        const lista = document.getElementById('listaBuilder' + idCat);
+        lista.innerHTML = '';
+        
+        Object.keys(adicionais).forEach(k => {
+            let add = adicionais[k];
+            if(add.categoria === cat) {
+                let infoExtra = parseFloat(add.precoExtraFixo) > 0 ? `<span class="comp-price">+ R$ ${parseFloat(add.precoExtraFixo).toFixed(2).replace('.', ',')} (Fixo)</span>` : '';
+                lista.innerHTML += `
+                <div class="comp-item">
+                    <div>
+                        <span class="comp-name">${add.nome}</span>
+                        ${infoExtra}
+                    </div>
+                    <div class="counter-box">
+                        <button class="btn-count" onclick="alterarQtd('${k}', -1)">-</button>
+                        <span class="count-val" id="count_${k}">${selecaoAtual[k]}</span>
+                        <button class="btn-count" onclick="alterarQtd('${k}', 1)">+</button>
+                    </div>
+                </div>`;
+            }
+        });
+    });
+}
+
+function alterarQtd(id, delta) {
+    if (selecaoAtual[id] + delta >= 0) {
+        selecaoAtual[id] += delta;
+        document.getElementById('count_' + id).innerText = selecaoAtual[id];
+        atualizarTotalBuilder();
+    }
+}
+
+function calcularCategoria(cat, limite) {
+    let qtdNormal = 0;
+    let extraCat = 0;
+    let fixosAdicionais = 0;
+    
+    Object.keys(adicionais).forEach(k => {
+        let add = adicionais[k];
+        if(add.categoria === cat) {
+            let qtd = selecaoAtual[k];
+            if(qtd > 0) {
+                if(parseFloat(add.precoExtraFixo) > 0) {
+                    fixosAdicionais += qtd * parseFloat(add.precoExtraFixo);
+                } else {
+                    qtdNormal += qtd;
+                }
+            }
+        }
+    });
+    
+    if(qtdNormal > limite) {
+        extraCat = (qtdNormal - limite) * 2; // R$ 2 por extra normal além do limite
+    }
+    
+    return { qtdNormal, extraCat, fixosAdicionais };
+}
+
+function atualizarTotalBuilder() {
+    let resCremes = calcularCategoria('creme', produtoAtual.limites.cremes);
+    let resCaldas = calcularCategoria('calda', produtoAtual.limites.caldas);
+    let resFrutas = calcularCategoria('fruta', produtoAtual.limites.frutas);
+    let resComps = calcularCategoria('complemento', produtoAtual.limites.comps);
+    
+    document.getElementById('qtdCremesUI').innerText = resCremes.qtdNormal;
+    document.getElementById('qtdCaldasUI').innerText = resCaldas.qtdNormal;
+    document.getElementById('qtdFrutasUI').innerText = resFrutas.qtdNormal;
+    document.getElementById('qtdCompsUI').innerText = resComps.qtdNormal;
+    
+    valorFinalBuild = parseFloat(produtoAtual.preco) 
+        + resCremes.extraCat + resCremes.fixosAdicionais
+        + resCaldas.extraCat + resCaldas.fixosAdicionais
+        + resFrutas.extraCat + resFrutas.fixosAdicionais
+        + resComps.extraCat + resComps.fixosAdicionais;
+        
+    document.getElementById('buildTotalDisplay').innerText = `R$ ${valorFinalBuild.toFixed(2).replace('.', ',')}`;
+}
+
+function adicionarAoCarrinho() {
+    let selecionados = [];
+    Object.keys(adicionais).forEach(k => {
+        if(selecaoAtual[k] > 0) {
+            selecionados.push(`${selecaoAtual[k]}x ${adicionais[k].nome}`);
+        }
+    });
+    
+    carrinho.push({
+        id: Date.now(),
+        nome: produtoAtual.nome,
+        desc: selecionados.length > 0 ? selecionados.join(', ') : 'Sem adicionais',
+        preco: valorFinalBuild
+    });
+    
+    fecharModais();
+    atualizarCarrinhoFloat();
+}
+
+function atualizarCarrinhoFloat() {
+    const btn = document.getElementById('cartBar');
+    if (carrinho.length > 0) {
+        btn.classList.add('show');
+        document.getElementById('cartQtd').innerText = carrinho.length;
+        const total = carrinho.reduce((a, b) => a + b.preco, 0);
+        document.getElementById('cartTotal').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    } else {
+        btn.classList.remove('show');
+    }
+}
+
+function removerDoCarrinho(id) {
+    carrinho = carrinho.filter(i => i.id !== id);
+    atualizarCarrinhoFloat();
+    abrirCheckout();
+}
+
+function abrirCheckout() {
+    const lista = document.getElementById('listaCheckoutItens');
+    lista.innerHTML = '';
+    let total = 0;
+    
+    if (carrinho.length === 0) {
+        fecharModais();
+        return;
+    }
+    
+    carrinho.forEach(item => {
+        total += item.preco;
+        lista.innerHTML += `
+        <div class="checkout-item">
+            <div style="flex:1;">
+                <b style="color:var(--neon-green);">${item.nome}</b><br>
+                <span style="font-size:0.75rem; color:var(--purple-light);">${item.desc}</span><br>
+                <b style="font-size:0.9rem;">R$ ${item.preco.toFixed(2).replace('.', ',')}</b>
+            </div>
+            <button class="btn-count btn-danger" onclick="removerDoCarrinho(${item.id})">X</button>
+        </div>`;
+    });
+    
+    document.getElementById('checkoutTotalUI').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    document.getElementById('modalCheckout').style.display = 'flex';
+    togglePgto();
+    toggleEntrega();
+}
+
+// PIX Logic Integrada do original
+function crc16(payload) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < payload.length; i++) {
+        crc ^= payload.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+            if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+            else crc = crc << 1;
+        }
+    }
+    return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+}
+
+function gerarPayloadPix(chave, nome, cidade, valor) {
+    let v = valor.toFixed(2);
+    let ch = chave.replace(/\D/g, '');
+    if(ch.length === 11) ch = '+55' + ch;
+    nome = nome.substring(0, 25).normalize('NFD').replace(/[̀-ͯ]/g, "").toUpperCase();
+    cidade = cidade.substring(0, 15).normalize('NFD').replace(/[̀-ͯ]/g, "").toUpperCase();
+    let accInfo = "0014br.gov.bcb.pix01" + ch.length.toString().padStart(2, '0') + ch;
+    let payload = "00020126" + accInfo.length.toString().padStart(2, '0') + accInfo + "52040000530398654" + v.length.toString().padStart(2, '0') + v + "5802BR59" + nome.length.toString().padStart(2, '0') + nome + "60" + cidade.length.toString().padStart(2, '0') + cidade + "62070503***6304";
+    return payload + crc16(payload);
+}
+
+function togglePgto() {
+    const pgto = document.getElementById('cliPgto').value;
+    document.getElementById('cliTroco').style.display = pgto === 'dinheiro' ? 'block' : 'none';
+    
+    if(pgto === 'pix') {
+        document.getElementById('dadosPix').style.display = 'block';
+        const total = carrinho.reduce((a, b) => a + b.preco, 0);
+        const pixString = gerarPayloadPix("84994169688", "Eloise de Freitas", "Pipa", total);
+        document.getElementById('pixCopiaCola').value = pixString;
+        document.getElementById('qrCodeImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixString)}&margin=10`;
+    } else {
+        document.getElementById('dadosPix').style.display = 'none';
+    }
+}
+
+function toggleEntrega() {
+    const tipo = document.getElementById('cliTipoPedido').value;
+    document.getElementById('entregaBox').style.display = tipo === 'entrega' ? 'block' : 'none';
+}
+
+function finalizarPedido() {
+    const nome = document.getElementById('cliNome').value;
+    if (!nome) return alert('Por favor, informe seu nome!');
+    
+    let texto = `*NOVO PEDIDO*
+*Cliente:* ${nome}
+`;
+    
+    const tipoPed = document.getElementById('cliTipoPedido').value;
+    if(tipoPed === 'entrega') {
+        const rua = document.getElementById('cliRua').value;
+        const num = document.getElementById('cliNumero').value;
+        const bairro = document.getElementById('cliBairro').value;
+        const ref = document.getElementById('cliRef').value;
+        if(!rua || !num || !bairro) return alert('Preencha rua, número e bairro para entrega!');
+        texto += `*Tipo:* ENTREGA
+*Endereço:* ${rua}, ${num} - ${bairro}
+*Ref:* ${ref}
+`;
+    } else {
+        texto += `*Tipo:* RETIRADA
+`;
+    }
+
+    const obs = document.getElementById('cliObs').value;
+    if(obs) texto += `*Obs:* ${obs}
+`;
+    
+    texto += `
+*Itens:*
+`;
+    carrinho.forEach((item, i) => { texto += `
+${i+1}. *${item.nome}* - R$ ${item.preco.toFixed(2).replace('.',',')}
+   ${item.desc}
+`; });
+    
+    const total = carrinho.reduce((a, b) => a + b.preco, 0);
+    texto += `
+*TOTAL: R$ ${total.toFixed(2).replace('.', ',')}*
+`;
+    
+    const pgto = document.getElementById('cliPgto').value;
+    texto += `
+*Pagamento:* ${pgto.toUpperCase()}`;
+    if (pgto === 'dinheiro') {
+        const troco = document.getElementById('cliTroco').value;
+        if (troco) texto += `
+*Troco para:* R$ ${parseFloat(troco).toFixed(2).replace('.', ',')}`;
+    }
+    
+    // Salva no Local DB de pedidos
+    let pedId = 'ped_' + Date.now();
+    pedidos[pedId] = { cliente: nome, texto: texto, total: total, status: 'pendente', data: new Date().toLocaleString() };
+    saveDB('pedidos', pedidos);
+    
+    fecharModais();
+    carrinho = [];
+    atualizarCarrinhoFloat();
+    
+    const whatsapp = "5584994169688";
+    window.location.href = `https://wa.me/${whatsapp}?text=${encodeURIComponent(texto)}`;
+}
+
+// ADMIN PANEL
+function abrirAdmin() {
+    if (prompt("Senha do Sistema:") === "admin26") {
+        document.getElementById('modalAdmin').style.display = 'flex';
+        carregarTabelasAdmin();
+    } else {
+        alert("Acesso Negado!");
+    }
+}
+
+function trocarAbaAdmin(abaId, btn) {
+    document.querySelectorAll('.modal-admin-full .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.modal-admin-full .tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`aba-${abaId}`).classList.add('active');
+}
+
+function fecharModais() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
+
+function carregarTabelasAdmin() {
+    // Pedidos
+    pedidos = getDB('pedidos');
+    let htmlPed = '';
+    Object.keys(pedidos).reverse().forEach(k => {
+        htmlPed += `<div class="pedido-card">
+            <div style="color:var(--neon-green); font-weight:bold;">${pedidos[k].cliente}</div>
+            <div style="font-size:0.8rem; color:#888;">${pedidos[k].data}</div>
+            <pre style="font-size:0.8rem; color:#ddd; margin:10px 0; white-space: pre-wrap; font-family:Montserrat;">${pedidos[k].texto}</pre>
+        </div>`;
+    });
+    document.getElementById('listaAdminPedidos').innerHTML = htmlPed || '<p style="text-align:center;color:#666;">Sem pedidos.</p>';
+
+    // Produtos
+    let htmlProd = '';
+    Object.keys(produtos).forEach(k => {
+        let p = produtos[k];
+        htmlProd += `<div class="comp-item">
+            <div><span class="comp-name">${p.nome}</span><span class="comp-price">R$ ${parseFloat(p.preco).toFixed(2)}</span></div>
+            <div>
+                <button class="btn-count btn-edit" onclick="editarProduto('${k}')">✎</button>
+                <button class="btn-count btn-danger" onclick="excluirProduto('${k}')">X</button>
+            </div>
+        </div>`;
+    });
+    document.getElementById('listaAdminEstoque').innerHTML = htmlProd;
+
+    // Adicionais
+    let htmlAdd = '';
+    Object.keys(adicionais).forEach(k => {
+        let a = adicionais[k];
+        let pText = parseFloat(a.precoExtraFixo) > 0 ? `(Fixa +R$${a.precoExtraFixo})` : '(Normal limit.)';
+        htmlAdd += `<div class="comp-item">
+            <div><span class="comp-name">${a.nome}</span><span class="comp-price">${a.categoria.toUpperCase()} ${pText}</span></div>
+            <div>
+                <button class="btn-count btn-edit" onclick="editarAdicional('${k}')">✎</button>
+                <button class="btn-count btn-danger" onclick="excluirAdicional('${k}')">X</button>
+            </div>
+        </div>`;
+    });
+    document.getElementById('listaAdminAdicionais').innerHTML = htmlAdd;
+}
+
+// Image Upload to IMGBB logic
+document.getElementById('addProdFile').addEventListener('change', function(e) {
+    let file = e.target.files[0];
+    if(!file) return;
+    document.getElementById('uploadStatus').innerText = "Fazendo upload da imagem, aguarde...";
+    let formData = new FormData();
+    formData.append("image", file);
+    fetch("https://api.imgbb.com/1/upload?key=6dfbbda72fbb086d99a4c0eb9dcd3fdb", { method: "POST", body: formData })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            document.getElementById('editProdImg').value = data.data.url;
+            document.getElementById('uploadStatus').innerText = "Imagem carregada com sucesso!";
+        } else {
+            document.getElementById('uploadStatus').innerText = "Erro no upload.";
+        }
+    }).catch(err => {
+        document.getElementById('uploadStatus').innerText = "Erro na requisição.";
+    });
+});
+
+function salvarProduto() {
+    let id = document.getElementById('editProdId').value || 'p_' + Date.now();
+    produtos[id] = {
+        nome: document.getElementById('addProdNome').value,
+        desc: document.getElementById('addProdDesc').value,
+        preco: parseFloat(document.getElementById('addProdPreco').value || 0),
+        img: document.getElementById('editProdImg').value || "",
+        limites: {
+            cremes: parseInt(document.getElementById('addProdLimCremes').value || 0),
+            caldas: parseInt(document.getElementById('addProdLimCaldas').value || 0),
+            frutas: parseInt(document.getElementById('addProdLimFrutas').value || 0),
+            comps: parseInt(document.getElementById('addProdLimComps').value || 0)
+        }
+    };
+    saveDB('produtos', produtos);
+    carregarTabelasAdmin();
+    carregarVitrine();
+    limparFormProd();
+    alert("Produto salvo!");
+}
+
+function editarProduto(k) {
+    let p = produtos[k];
+    document.getElementById('editProdId').value = k;
+    document.getElementById('addProdNome').value = p.nome;
+    document.getElementById('addProdDesc').value = p.desc;
+    document.getElementById('addProdPreco').value = p.preco;
+    document.getElementById('addProdLimCremes').value = p.limites.cremes;
+    document.getElementById('addProdLimCaldas').value = p.limites.caldas;
+    document.getElementById('addProdLimFrutas').value = p.limites.frutas;
+    document.getElementById('addProdLimComps').value = p.limites.comps;
+    document.getElementById('editProdImg').value = p.img || "";
+    document.getElementById('formTitleProd').innerText = "Editando: " + p.nome;
+}
+
+function excluirProduto(k) {
+    if(confirm("Apagar produto?")) { delete produtos[k]; saveDB('produtos', produtos); carregarTabelasAdmin(); carregarVitrine(); }
+}
+
+function limparFormProd() {
+    document.getElementById('editProdId').value = '';
+    document.getElementById('addProdNome').value = '';
+    document.getElementById('addProdDesc').value = '';
+    document.getElementById('addProdPreco').value = '';
+    document.getElementById('addProdLimCremes').value = '';
+    document.getElementById('addProdLimCaldas').value = '';
+    document.getElementById('addProdLimFrutas').value = '';
+    document.getElementById('addProdLimComps').value = '';
+    document.getElementById('editProdImg').value = '';
+    document.getElementById('addProdFile').value = '';
+    document.getElementById('uploadStatus').innerText = '';
+    document.getElementById('formTitleProd').innerText = "Novo Produto";
+}
+
+function salvarAdicional() {
+    let id = document.getElementById('editAddId').value || 'a_' + Date.now();
+    adicionais[id] = {
+        nome: document.getElementById('addAddNome').value,
+        categoria: document.getElementById('addAddCat').value,
+        precoExtraFixo: parseFloat(document.getElementById('addAddPreco').value || 0)
+    };
+    saveDB('adicionais', adicionais);
+    carregarTabelasAdmin();
+    limparFormAdd();
+    alert("Adicional salvo!");
+}
+
+function editarAdicional(k) {
+    let a = adicionais[k];
+    document.getElementById('editAddId').value = k;
+    document.getElementById('addAddNome').value = a.nome;
+    document.getElementById('addAddCat').value = a.categoria;
+    document.getElementById('addAddPreco').value = a.precoExtraFixo || 0;
+    document.getElementById('formTitleAdd').innerText = "Editando: " + a.nome;
+}
+
+function excluirAdicional(k) {
+    if(confirm("Apagar adicional?")) { delete adicionais[k]; saveDB('adicionais', adicionais); carregarTabelasAdmin(); }
+}
+
+function limparFormAdd() {
+    document.getElementById('editAddId').value = '';
+    document.getElementById('addAddNome').value = '';
+    document.getElementById('addAddCat').value = 'creme';
+    document.getElementById('addAddPreco').value = '0';
+    document.getElementById('formTitleAdd').innerText = "Novo Adicional";
+}
+
+window.onload = carregarVitrine;
+</script>
+
+</body>
+</html>
